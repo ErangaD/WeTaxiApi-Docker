@@ -6,7 +6,11 @@ import bodyParser from 'body-parser';
 import { Controller } from './main.controller';
 
 // DB
-import { MONGO_DB } from './constants/WeTaxiApi.constants';
+import {
+  MONGO_DB,
+  NUMBER_OF_AVAILABLE_SLOTS,
+  NUMBER_OF_PARKING_LOTS,
+} from './constants/WeTaxiApi.constants';
 import mongoose from 'mongoose';
 
 // CORS
@@ -18,6 +22,9 @@ import { notFoundHandler } from './middleware/notFound.middleware';
 
 // Logging
 import morganBody from 'morgan-body';
+
+// models
+import models from './models';
 
 class App {
   public app: Application;
@@ -49,6 +56,29 @@ class App {
     this.app.use(cors());
     // Morgan Logging
     morganBody(this.app, { theme: 'darkened' });
+    // initialize parking lot if not present
+    this.initializeParkingLot();
+  }
+
+  private initializeParkingLot() {
+    models.ParkingLot.find({})
+      .then((parkingLot) => {
+        if (parkingLot.length == 0) {
+          // create a new parking lots
+          for (let i = 0; i < NUMBER_OF_PARKING_LOTS; i++) {
+            const taxiQueue = [];
+            const parkingLot = new models.ParkingLot({
+              parkingLotName: 'PL:' + i,
+              availableSlots: NUMBER_OF_AVAILABLE_SLOTS,
+              taxiQueue: taxiQueue,
+            });
+            parkingLot.save();
+          }
+        }
+      })
+      .catch((error) => {
+        console.error('Retrieve parking lots failed::', error);
+      });
   }
 
   private setErrors() {
