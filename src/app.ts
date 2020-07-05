@@ -5,6 +5,9 @@ import bodyParser from 'body-parser';
 // Importing our controller
 import { Controller } from './main.controller';
 
+// importing all the controllers as controllers from the controllers.ts file
+import controllers from './controllers';
+
 // DB
 import {
   MONGO_DB,
@@ -40,8 +43,10 @@ class App {
     // Mongo configuration
     this.setMongoConfig();
 
-    // Creating and assigning a new instance of our controller
-    this.weTaxiController = new Controller(this.app);
+    // Creating and assigning a new controllers
+    new Controller(this.app);
+    new controllers.TaxiController(this.app);
+    new controllers.ParkingLotController(this.app);
 
     // Errors always in the bottom as the cycle of Req/Resp closing with it
     this.setErrors();
