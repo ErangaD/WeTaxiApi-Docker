@@ -97,33 +97,18 @@ export class WeTaxiServiceSimulation {
       );
       return 'savedParkingLot';
     }
-    // models.ParkingLot.findById(parkingLotId).then(async parkingLot => {
-    //   let taxisAvailable = parkingLot.taxiQueue;
-    //   let otherTaxis = taxisAvailable.filter(existingNumber => existingNumber != taxiNumber);
-    //   if(otherTaxis.length == taxisAvailable.length) {
-    //     otherTaxis.push(taxiNumber);
-    //     parkingLot.taxiQueue = otherTaxis;
-    //     parkingLot.availableSlots = parkingLot.availableSlots - 1;
-    //     let savedParkingLot =  await parkingLot.save();
-    //     console.log("Taxi Added to the queue", parkingLot.taxiQueue, 'of', parkingLot.parkingLotName);
-    //     return savedParkingLot;
-    //   } else {
-    //     console.error('Invalid Request: Taxi is available in the parking lot already');
-    //   }
-    // }).catch(error => {
-    //   console.error(error);
-    // });
   };
 
-  public removeTaxi = (parkingLotId: string, taxiNumber: string): any => {
+  public releaseTaxi = (parkingLotId: string): any => {
     models.ParkingLot.findById(parkingLotId)
       .then((parkingLot) => {
         const taxisAvailable = parkingLot.taxiQueue;
-        const otherTaxis = taxisAvailable.filter(
-          (existingNumber) => existingNumber != taxiNumber
-        );
-        if (otherTaxis.length != taxisAvailable.length) {
-          otherTaxis.push(taxiNumber);
+        if (taxisAvailable.length > 0) {
+          const releasingTaxi = taxisAvailable[0];
+          const otherTaxis = taxisAvailable.filter(
+            (existingNumber) => existingNumber != releasingTaxi
+          );
+          otherTaxis.push(releasingTaxi);
           parkingLot.taxiQueue = otherTaxis;
           parkingLot
             .save()
@@ -140,8 +125,7 @@ export class WeTaxiServiceSimulation {
         } else {
           console.error(
             parkingLotId,
-            taxiNumber,
-            'Invalid Request: Taxi is not available in the parking lot'
+            'Invalid Request: No taxis available in the parking lot'
           );
         }
       })
@@ -166,7 +150,7 @@ export class WeTaxiServiceSimulation {
               Math.random() * parkingLot.taxiQueue.length
             );
             taxiName = 'Taxi:' + randomTaxi + ' ' + parkingLot.parkingLotName;
-            this.removeTaxi(parkingLot._id, taxiName);
+            this.releaseTaxi(parkingLot._id);
           }, 2000);
         }
       })

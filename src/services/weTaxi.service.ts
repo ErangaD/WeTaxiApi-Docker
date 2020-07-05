@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
-import { WELCOME_MESSAGE } from '../constants/WeTaxiApi.constants';
+import {
+  WELCOME_MESSAGE,
+  GPS_THRESOLD,
+} from '../constants/WeTaxiApi.constants';
 import models from '../models';
 
 export class WeTaxiService {
@@ -27,22 +30,45 @@ export class WeTaxiService {
     const taxiLocation = locationData.newLocation;
     taxiLocation.latitude = Number(taxiLocation.latitude);
     taxiLocation.longitude = Number(taxiLocation.longitude);
-    models.Taxi.updateOne(
-      { taxiNumber: taxiNumber },
-      {
-        lastLocationLatitude: taxiLocation.latitude,
-        lastLocationLongitude: taxiLocation.longitude,
-      }
-    )
-      .then((result) => {
-        if (result.n) {
-          return res.status(200).send({
-            result: 'Success',
-          });
+    models.Taxi.findOne({ taxiNumber: taxiNumber })
+      .then((taxi) => {
+        if (taxi.lastLocationLatitude) {
+          if (
+            Math.abs(taxi.lastLocationLatitude - taxiLocation.latitude) >
+              GPS_THRESOLD ||
+            Math.abs(taxi.lastLocationLongitude - taxiLocation.longitude) >
+              GPS_THRESOLD
+          ) {
+            taxi.lastLocationLatitude = taxiLocation.latitude;
+            taxi.lastLocationLongitude = taxiLocation.longitude;
+            taxi
+              .save()
+              .then((taxi) => {
+                return res.status(200).send({
+                  result: 'Success',
+                });
+              })
+              .catch((error) => {
+                return res.status(500).send({ error: error });
+              });
+          } else {
+            return res.status(200).send({
+              result: 'Not a considerable GPS change',
+            });
+          }
         } else {
-          return res
-            .status(404)
-            .send({ error: 'Invalid Request: Taxi is not available' });
+          taxi.lastLocationLatitude = taxiLocation.latitude;
+          taxi.lastLocationLongitude = taxiLocation.longitude;
+          taxi
+            .save()
+            .then((taxi) => {
+              return res.status(200).send({
+                result: 'Success',
+              });
+            })
+            .catch((error) => {
+              return res.status(500).send({ error: error });
+            });
         }
       })
       .catch((error) => {
@@ -137,18 +163,17 @@ export class WeTaxiService {
       });
   };
 
-  public removeTaxi = (req: Request, res: Response): any => {
+  public releaseTaxi = (req: Request, res: Response): any => {
     const parkingLotId = req.body.parkingLotId;
-    const taxiNumber = req.body.taxiNumber;
-
     models.ParkingLot.findById(parkingLotId)
       .then((parkingLot) => {
         const taxisAvailable = parkingLot.taxiQueue;
-        const otherTaxis = taxisAvailable.filter(
-          (existingNumber) => existingNumber != taxiNumber
-        );
-        if (otherTaxis.length != taxisAvailable.length) {
-          otherTaxis.push(taxiNumber);
+        if (taxisAvailable.length > 0) {
+          const releasingTaxi = taxisAvailable[0];
+          const otherTaxis = taxisAvailable.filter(
+            (existingNumber) => existingNumber != releasingTaxi
+          );
+          otherTaxis.push(releasingTaxi);
           parkingLot.taxiQueue = otherTaxis;
           parkingLot
             .save()
@@ -160,7 +185,7 @@ export class WeTaxiService {
             });
         } else {
           return res.status(500).send({
-            error: 'Invalid Request: Taxi is not available in the parking lot',
+            error: 'Invalid Request: No taxis in the parking lot',
           });
         }
       })

@@ -48,7 +48,7 @@ export class Controller {
   };
 
   public removeTaxi = () => {
-    return this.app.route('/remove-taxi').post(this.weTaxiService.removeTaxi);
+    return this.app.route('/release-taxi').post(this.weTaxiService.releaseTaxi);
   };
 
   public addToParkingLot = () => {
